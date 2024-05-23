@@ -151,7 +151,7 @@ https://github.com/teller-protocol/teller-protocol-v2-audit-2024/pull/10
 Source: https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/19 
 
 ## Found by 
-0x3b, 0x73696d616f, 0xadrii, Bauer, EgisSecurity, eeshenggoh, jovi, no, pkqs90
+0x3b, 0x73696d616f, 0xadrii, Bauer, EgisSecurity, IvanFitro, eeshenggoh, jovi, no, pkqs90
 ## Summary
 The [burnSharesToWithdrawEarnings](https://github.com/sherlock-audit/2024-04-teller-finance/blob/main/teller-protocol-v2-audit-2024/packages/contracts/contracts/LenderCommitmentForwarder/extensions/LenderCommitmentGroup/LenderCommitmentGroup_Smart.sol#L403-L408) function burns shares before calculating the share price, resulting in an increase in share value and causing users to be overpaid.
 
@@ -1726,283 +1726,70 @@ Requests remaining: **7**
 
 Hi @nevillehuang, found the following token that has 32 decimals and is on a Uniswap [pool](https://polygonscan.com/address/0x66209951a5368443cbb812a80beca1d76ccb4248#readContract), [BBC](https://polygonscan.com/address/0x0d1035591413Ff618509fCA1C9Ad9683cC1d623a#readContract). `(2^256-1) / 1e36 / 1e32` is approx `1.15e9`, which means that if the token is worth $0.01, it would require 11.5 million USD in TVL to lock the contract due to overflow.
 
-# Issue M-4: Logic error in LenderCommitmentForwarder_G2::_acceptCommitment() causing Dos 
+**spacegliderrrr**
 
-Source: https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/43 
+Escalate
 
-## Found by 
-0xAnmol, no
-## Summary
-Logic error in `LenderCommitmentForwarder_G2::_acceptCommitment()` causing Dos
-## Vulnerability Detail
-```javascript
-function _acceptCommitment(
-        uint256 _commitmentId,
-        uint256 _principalAmount,
-        uint256 _collateralAmount,
-        uint256 _collateralTokenId,
-        address _collateralTokenAddress,
-        address _recipient,
-        uint16 _interestRate,
-        uint32 _loanDuration
-    ) internal returns (uint256 bidId) {
-        Commitment storage commitment = commitments[_commitmentId];
+Should be invalid. Such high token decimals are unrealistic. Even if the recommendation is followed, it can always be said that protocol can't operate with 60 decimals tokens. Also, the given example is a random inactive token with a total of 32 transactions.
 
-        //make sure the commitment data adheres to required specifications and limits
-        validateCommitment(commitment);
+**sherlock-admin3**
 
-        //the collateral token of the commitment should be the same as the acceptor expects
-        require(
-            _collateralTokenAddress == commitment.collateralTokenAddress,
-            "Mismatching collateral token"
-        );
-        //the interest rate must be at least as high has the commitment demands. The borrower can use a higher interest rate although that would not be beneficial to the borrower.
-        require(
-            _interestRate >= commitment.minInterestRate,
-            "Invalid interest rate"
-        );
-        //the loan duration must be less than the commitment max loan duration. The lender who made the commitment expects the money to be returned before this window.
-        require(
-            _loanDuration <= commitment.maxDuration,
-            "Invalid loan max duration"
-        );
+> Escalate
+> 
+> Should be invalid. Such high token decimals are unrealistic. Even if the recommendation is followed, it can always be said that protocol can't operate with 60 decimals tokens. Also, the given example is a random inactive token with a total of 32 transactions.
 
-        require(
-@>            commitmentPrincipalAccepted[bidId] <= commitment.maxPrincipal,
-            "Invalid loan max principal"
-        );
+You've created a valid escalation!
 
-        require(
-            commitmentBorrowersList[_commitmentId].length() == 0 ||
-                commitmentBorrowersList[_commitmentId].contains(_msgSender()),
-            "unauthorized commitment borrower"
-        );
-        //require that the borrower accepting the commitment cannot borrow more than the commitments max principal
-        if (_principalAmount > commitment.maxPrincipal) {
-            revert InsufficientCommitmentAllocation({
-                allocated: commitment.maxPrincipal,
-                requested: _principalAmount
-            });
-        }
+To remove the escalation from consideration: Delete your comment.
 
-        uint256 requiredCollateral = getRequiredCollateral(
-            _principalAmount,
-            commitment.maxPrincipalPerCollateralAmount,
-            commitment.collateralTokenType,
-            commitment.collateralTokenAddress,
-            commitment.principalTokenAddress
-        );
+You may delete or edit your escalation comment anytime before the 48-hour escalation window closes. After that, the escalation becomes final.
 
-        if (_collateralAmount < requiredCollateral) {
-            revert InsufficientBorrowerCollateral({
-                required: requiredCollateral,
-                actual: _collateralAmount
-            });
-        }
+**0x73696d616f**
 
-        //ERC721 assets must have a quantity of 1
-        if (
-            commitment.collateralTokenType == CommitmentCollateralType.ERC721 ||
-            commitment.collateralTokenType ==
-            CommitmentCollateralType.ERC721_ANY_ID ||
-            commitment.collateralTokenType ==
-            CommitmentCollateralType.ERC721_MERKLE_PROOF
-        ) {
-            require(
-                _collateralAmount == 1,
-                "invalid commitment collateral amount for ERC721"
-            );
-        }
+60 decimals is not realistic, but 30ish is. We do not know the reason for the 32 transactions but the token exists and proves my point.
 
-        //ERC721 and ERC1155 types strictly enforce a specific token Id.  ERC721_ANY and ERC1155_ANY do not.
-        if (
-            commitment.collateralTokenType == CommitmentCollateralType.ERC721 ||
-            commitment.collateralTokenType == CommitmentCollateralType.ERC1155
-        ) {
-            require(
-                commitment.collateralTokenId == _collateralTokenId,
-                "invalid commitment collateral tokenId"
-            );
-        }
+**spacegliderrrr**
 
-        commitmentPrincipalAccepted[_commitmentId] += _principalAmount;
+The way to determine what is realistic is by observing what is used in practice. There is no token with remarkable activity with `30-ish` decimals. You're purely speculating.
 
-        require(
-            commitmentPrincipalAccepted[_commitmentId] <=
-                commitment.maxPrincipal,
-            "Exceeds max principal of commitment"
-        );
+**0x73696d616f**
 
-        CreateLoanArgs memory createLoanArgs;
-        createLoanArgs.marketId = commitment.marketId;
-        createLoanArgs.lendingToken = commitment.principalTokenAddress;
-        createLoanArgs.principal = _principalAmount;
-        createLoanArgs.duration = _loanDuration;
-        createLoanArgs.interestRate = _interestRate;
-        createLoanArgs.recipient = _recipient;
-        if (commitment.collateralTokenType != CommitmentCollateralType.NONE) {
-            createLoanArgs.collateral = new Collateral[](1);
-            createLoanArgs.collateral[0] = Collateral({
-                _collateralType: _getEscrowCollateralType(
-                    commitment.collateralTokenType
-                ),
-                _tokenId: _collateralTokenId,
-                _amount: _collateralAmount,
-                _collateralAddress: commitment.collateralTokenAddress
-            });
-        }
+> There is no token with remarkable activity with 30-ish decimals.
 
-        bidId = _submitBidWithCollateral(createLoanArgs, _msgSender());
+You do not have the data to back this up, and I have found one without recent activity that proves this.
 
-        _acceptBid(bidId, commitment.lender);
+> You're purely speculating.
 
-        emit ExercisedCommitment(
-            _commitmentId,
-            _msgSender(),
-            _principalAmount,
-            bidId
-        );
-    }
-```
-bidId is a local variable, its initial value is always 0.Comparing commitmentPrincipalAccepted[bidId] namely is Comparing commitmentPrincipalAccepted[0].
-require commitmentPrincipalAccepted[0] is alwayse less than commitment.maxPrincipal 
-cause the problem of DoS.
-#### POC
-Add this function `test_acceptCommitment_logic_error_check()` in LenderCommitmentForwarder_Unit_Test.sol.
-```javascript
-function test_acceptCommitment_logic_error_check() public {
-        ILenderCommitmentForwarder.Commitment
-            memory c = ILenderCommitmentForwarder.Commitment({
-                maxPrincipal: maxPrincipal,
-                expiration: expiration,
-                maxDuration: maxDuration,
-                minInterestRate: minInterestRate,
-                collateralTokenAddress: address(collateralToken),
-                collateralTokenId: collateralTokenId,
-                maxPrincipalPerCollateralAmount: maxPrincipalPerCollateralAmount,
-                collateralTokenType: collateralTokenType,
-                lender: address(lender),
-                marketId: marketId,
-                principalTokenAddress: address(principalToken)
-            });
+Again, we do not know why the token died, but it still proves my point. Anyway [here](https://etherscan.io/address/0x5702a4487da07c827cde512e2d5969cb430cd839#readContract) is another token with 27 decimals. `(2^256-1) / 1e36 / 1e27 = 1e14`. `3/30 = 10 %`, which means the token is `10%` close to the 30 decimals mark. If the token price crashes, given some TVL, it will overflow. Also, with this token, someone may create an [ERC4626](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/extensions/ERC4626.sol#L106-L108) token with `_decimalsOffset()` of at least 3 and it would reach the 30 decimals mark, again, proving my point. (`_decimalsOffset()` in ERC4626 tokens is a common way to mitigate inflation attacks and such by increasing the precision of the shares in relation to the assets). OpenZeppelin uses a `_decimalsOffset()` of 3 in their [example](https://docs.openzeppelin.com/contracts/4.x/erc4626), so this is a realistic value (the delta in the images).
 
-         //uint256 commitmentId = 0;
+This issue is valid as it was proved that it overflows for some tokens.
 
-        // lenderCommitmentForwarder.setCommitment(commitmentId, c);
-        uint256 commitmentId = lender._createCommitment(c, emptyArray);
+**nevillehuang**
 
-        uint256 principalAmount = maxPrincipal;
-        uint256 collateralAmount = 1000;
-        uint16 interestRate = minInterestRate;
-        uint32 loanDuration = maxDuration;
+Since an appropriate example is provided that corresponds to the contest details, I believe this issue should remain valid.
 
-        // vm.expectRevert("collateral token mismatch");
-        lenderCommitmentForwarder.acceptCommitment(
-            commitmentId,
-            principalAmount,
-            collateralAmount,
-            collateralTokenId,
-            address(collateralToken),
-            interestRate,
-            loanDuration
-        );
+**cvetanovv**
 
-        assertEq(
-            lenderCommitmentForwarder.getCommitmentMaxPrincipal(commitmentId),
-            maxPrincipal,
-            "Max principal changed"
-        );
+The protocol has written in the Readme that they will use any token compatible with Uniswap V3. 
 
-        ILenderCommitmentForwarder.Commitment
-            memory c2 = ILenderCommitmentForwarder.Commitment({
-                maxPrincipal: maxPrincipal - 100,
-                expiration: expiration,
-                maxDuration: maxDuration,
-                minInterestRate: minInterestRate,
-                collateralTokenAddress: address(collateralToken),
-                collateralTokenId: collateralTokenId,
-                maxPrincipalPerCollateralAmount: maxPrincipalPerCollateralAmount,
-                collateralTokenType: collateralTokenType,
-                lender: address(lender),
-                marketId: marketId,
-                principalTokenAddress: address(principalToken)
-            });
+@0x73696d616f has given a valid example of how using a token with more decimals(27+) can lead to DoS.
 
-            principalAmount = maxPrincipal - 100;
-        //commitmentId = 1
-         commitmentId = lender._createCommitment(c2, emptyArray);
-        lenderCommitmentForwarder.acceptCommitment(
-            commitmentId,
-            principalAmount,
-            collateralAmount,
-            collateralTokenId,
-            address(collateralToken),
-            interestRate,
-            loanDuration
-        );
-    }
+Planning to reject the escalation and leave the issue as is.
 
-```
-Then run `forge test --mt test_acceptCommitment_logic_error_check -vv` in terminal, we will get:
-```bash
-Ran 1 test for tests/LenderCommitmentForwarder/LenderCommitmentForwarder_Unit_Test.sol:LenderCommitmentForwarder_Test
-[FAIL. Reason: revert: Invalid loan max principal] test_acceptCommitment_logic_error_check() (gas: 403345)
-Traces:
-  [403345] LenderCommitmentForwarder_Test::test_acceptCommitment_logic_error_check()
-    ├─ [169126] LenderCommitmentUser::_createCommitment(Commitment({ maxPrincipal: 100000000000000000000 [1e20], expiration: 64001 [6.4e4], maxDuration: 2480000 [2.48e6], minInterestRate: 3000, collateralTokenAddress: 0xA4AD4f68d0b91CFD19687c881e50f3A00242828c, collateralTokenId: 0, maxPrincipalPerCollateralAmount: 100, collateralTokenType: 0, lender: 0xa0Cb889707d426A7A386870A03bc70d1b0697598, marketId: 2, principalTokenAddress: 0x1d1499e622D69689cdf9004d05Ec547d650Ff211 }), [])
-    │   ├─ [164569] LenderCommitmentForwarder_Override::createCommitment(Commitment({ maxPrincipal: 100000000000000000000 [1e20], expiration: 64001 [6.4e4], maxDuration: 2480000 [2.48e6], minInterestRate: 3000, collateralTokenAddress: 0xA4AD4f68d0b91CFD19687c881e50f3A00242828c, collateralTokenId: 0, maxPrincipalPerCollateralAmount: 100, collateralTokenType: 0, lender: 0xa0Cb889707d426A7A386870A03bc70d1b0697598, marketId: 2, principalTokenAddress: 0x1d1499e622D69689cdf9004d05Ec547d650Ff211 }), [])
-    │   │   ├─ emit UpdatedCommitmentBorrowers(commitmentId: 0)
-    │   │   ├─ emit CreatedCommitment(commitmentId: 0, lender: LenderCommitmentUser: [0xa0Cb889707d426A7A386870A03bc70d1b0697598], marketId: 2, lendingToken: TestERC20Token: [0x1d1499e622D69689cdf9004d05Ec547d650Ff211], tokenAmount: 100000000000000000000 [1e20])
-    │   │   └─ ← 0
-    │   └─ ← 0
-    ├─ [53706] LenderCommitmentForwarder_Override::acceptCommitment(0, 100000000000000000000 [1e20], 1000, 0, TestERC20Token: [0xA4AD4f68d0b91CFD19687c881e50f3A00242828c], 3000, 2480000 [2.48e6])
-    │   ├─ emit ExercisedCommitment(commitmentId: 0, borrower: LenderCommitmentForwarder_Test: [0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496], tokenAmount: 100000000000000000000 [1e20], bidId: 1)
-    │   └─ ← 1
-    ├─ [526] LenderCommitmentForwarder_Override::getCommitmentMaxPrincipal(0) [staticcall]
-    │   └─ ← 100000000000000000000 [1e20]
-    ├─ [144726] LenderCommitmentUser::_createCommitment(Commitment({ maxPrincipal: 99999999999999999900 [9.999e19], expiration: 64001 [6.4e4], maxDuration: 2480000 [2.48e6], minInterestRate: 3000, collateralTokenAddress: 0xA4AD4f68d0b91CFD19687c881e50f3A00242828c, collateralTokenId: 0, maxPrincipalPerCollateralAmount: 100, collateralTokenType: 0, lender: 0xa0Cb889707d426A7A386870A03bc70d1b0697598, marketId: 2, principalTokenAddress: 0x1d1499e622D69689cdf9004d05Ec547d650Ff211 }), [])
-    │   ├─ [142669] LenderCommitmentForwarder_Override::createCommitment(Commitment({ maxPrincipal: 99999999999999999900 [9.999e19], expiration: 64001 [6.4e4], maxDuration: 2480000 [2.48e6], minInterestRate: 3000, collateralTokenAddress: 0xA4AD4f68d0b91CFD19687c881e50f3A00242828c, collateralTokenId: 0, maxPrincipalPerCollateralAmount: 100, collateralTokenType: 0, lender: 0xa0Cb889707d426A7A386870A03bc70d1b0697598, marketId: 2, principalTokenAddress: 0x1d1499e622D69689cdf9004d05Ec547d650Ff211 }), [])
-    │   │   ├─ emit UpdatedCommitmentBorrowers(commitmentId: 1)
-    │   │   ├─ emit CreatedCommitment(commitmentId: 1, lender: LenderCommitmentUser: [0xa0Cb889707d426A7A386870A03bc70d1b0697598], marketId: 2, lendingToken: TestERC20Token: [0x1d1499e622D69689cdf9004d05Ec547d650Ff211], tokenAmount: 99999999999999999900 [9.999e19])
-    │   │   └─ ← 1
-    │   └─ ← 1
-    ├─ [2380] LenderCommitmentForwarder_Override::acceptCommitment(1, 99999999999999999900 [9.999e19], 1000, 0, TestERC20Token: [0xA4AD4f68d0b91CFD19687c881e50f3A00242828c], 3000, 2480000 [2.48e6])
-    │   └─ ← revert: Invalid loan max principal
-    └─ ← revert: Invalid loan max principal
+**Evert0x**
 
-Suite result: FAILED. 0 passed; 1 failed; 0 skipped; finished in 4.53ms (393.79µs CPU time)
+Result:
+Medium
+Unique
 
-```
-## Impact
-When the value commitmentPrincipalAccepted of commitmentId=0 is bigger than  commitment.maxPrincipal of other commitmentId. `_acceptCommitment` will revert.
+**sherlock-admin4**
 
-## Code Snippet
-https://github.com/sherlock-audit/2024-04-teller-finance/blob/defe55469a2576735af67483acf31d623e13592d/teller-protocol-v2-audit-2024/packages/contracts/contracts/LenderCommitmentForwarder/LenderCommitmentForwarder_G2.sol#L448C5-L574C6
-## Tool used
+Escalations have been resolved successfully!
 
-Manual Review
+Escalation status:
+- [spacegliderrrr](https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/39/#issuecomment-2119196938): rejected
 
-## Recommendation
-```diff
-require(
--            commitmentPrincipalAccepted[bidId] <= commitment.maxPrincipal,
-+            commitmentPrincipalAccepted[_commitmentId] <= commitment.maxPrincipal,
-            "Invalid loan max principal"
-        );
-```
-
-
-
-
-## Discussion
-
-**sherlock-admin2**
-
-The protocol team fixed this issue in the following PRs/commits:
-https://github.com/teller-protocol/teller-protocol-v2-audit-2024/pull/15
-
-
-# Issue M-5: `LenderCommitmentGroup_Smart_test::addPrincipalToCommitmentGroup/burnSharesToWithdrawEarnings()` are vulnerable to slippage attacks 
+# Issue M-4: `LenderCommitmentGroup_Smart_test::addPrincipalToCommitmentGroup/burnSharesToWithdrawEarnings()` are vulnerable to slippage attacks 
 
 Source: https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/64 
 
@@ -2136,7 +1923,7 @@ The fix would be the same, that is to implement a virtual minimum amount of shar
 - 291 - 3
 - 297 - 3
 
-# Issue M-6: Borrowers can surpass `liquidityThresholdPercent` and borrow to near 100% of the principal 
+# Issue M-5: Borrowers can surpass `liquidityThresholdPercent` and borrow to near 100% of the principal 
 
 Source: https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/68 
 
@@ -2213,7 +2000,148 @@ The protocol team fixed this issue in the following PRs/commits:
 https://github.com/teller-protocol/teller-protocol-v2-audit-2024/pull/23/files
 
 
-# Issue M-7: Utilization math should include `liquidityThresholdPercent` 
+**pkqs90**
+
+Escalate
+
+I think this issue is duplicate to https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/110. The core issue in both issues is users can perform: 1) Deposit, 2) Take a loan, 3) Withdraw in 1 transaction (or in a short period of time).
+
+This issue talks about the above attack path can bypass the borrowing limit, while https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/110 talks about the same attack path can be used to toy with interest rate.
+
+
+The sherlock doc states that if two issues share the same vulnerability, they should be duplicate:
+
+```
+Issues identifying a core vulnerability can be considered duplicates.
+
+Scenario A:
+There is a root cause/error/vulnerability A in the code. This vulnerability A -> leads to two attack paths:
+- B -> high severity path
+- C -> medium severity attack path/just identifying the vulnerability.
+Both B & C would not have been possible if error A did not exist in the first place. In this case, both B & C should be put together as duplicates.
+```
+
+**sherlock-admin3**
+
+> Escalate
+> 
+> I think this issue is duplicate to https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/110. The core issue in both issues is users can perform: 1) Deposit, 2) Take a loan, 3) Withdraw in 1 transaction (or in a short period of time).
+> 
+> This issue talks about the above attack path can bypass the borrowing limit, while https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/110 talks about the same attack path can be used to toy with interest rate.
+> 
+> 
+> The sherlock doc states that if two issues share the same vulnerability, they should be duplicate:
+> 
+> ```
+> Issues identifying a core vulnerability can be considered duplicates.
+> 
+> Scenario A:
+> There is a root cause/error/vulnerability A in the code. This vulnerability A -> leads to two attack paths:
+> - B -> high severity path
+> - C -> medium severity attack path/just identifying the vulnerability.
+> Both B & C would not have been possible if error A did not exist in the first place. In this case, both B & C should be put together as duplicates.
+> ```
+
+You've created a valid escalation!
+
+To remove the escalation from consideration: Delete your comment.
+
+You may delete or edit your escalation comment anytime before the 48-hour escalation window closes. After that, the escalation becomes final.
+
+**nevillehuang**
+
+Agree with @pkqs90, this issue and duplicates should be a duplicate of #110
+
+**0x73696d616f**
+
+I do not agree with this escalation, the escalator is mixing the attack path with the root cause.
+It is a coincidence that both issues are described with the same exact attack path, but their root causes are different, which is the important factor here.
+You can fix one issue that the other issue is still there.
+The root cause of this issue is not checking the liquidity threshold when withdrawing. Depositing before borrowing and withdrawing is not required.
+The bug is still here if past borrowers decide to withdraw ->
+$100k deposits
+$80k borrows
+liquidityThresholdPercent is 80%
+
+Some user withdraws 20k
+$80k deposits
+$80k borrows
+liquidityThresholdPercent is 100%
+
+The 2 issues do not even show the same code snippet.
+
+**cvetanovv**
+
+I disagree with the escalation.
+
+The root cause of this issue and #110 are entirely different. 
+
+- This issue is that a user can bypass the borrowing limit
+- The #110 root cause is that the user can manipulate the interest rate.
+
+What they have in common is the path of attack. However, in order to decide whether #68 (Medium) should be duplicated with #110 (High), they must have a common root cause.
+
+The Sherlock documentation also records:
+
+> The exception to this would be if underlying code implementations, impact, and the fixes are different, then they can be treated separately.
+
+This issue fits into all three categories: different impact, implementation, and fix.
+
+Planning to reject the escalation and leave the issue as is.
+
+**0x73696d616f**
+
+I do agree with #44 and #48 being duplicates of #110 though (which is currently the case, so no change).
+
+**pkqs90**
+
+Hi @0x73696d616f @cvetanovv. First of all, I'd like to make it clear I'm perfectly okay whether this escalation goes through or not, all my comments are based on facts rather than intention. For me, I just want to better understand how the judging process works.
+
+After reading your comments, I still don't understand why this is an non-duplicate issue. 
+
+The `liquidityThresholdPercent` in this protocol is used **only** for calculating `getPrincipalAmountAvailableToBorrow()`, which is used for checking whether the amount of principal borrowed exceeds the limit in `acceptFundsForAcceptBid()`.
+
+Yes, users can withdraw their principal and make the liquidity percentage higher than `liquidityThresholdPercent`, but that is not what this issue is talking about - and I don't think it is a issue anyways, since it doesn't matter if the current liquidity percentage is higher or equal to `liquidityThresholdPercent` - either way no more principal can be taken as loan.
+
+The root cause this issue is talking about is that borrowers can bypass the `liquidityThresholdPercent` check by depositing principal before creating a loan, and withdraw the principal after loan is created. This attack path is identical to https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/110. Both issues talk about the user can *deposit principal before taking action* - but with different goals - this issue's goal is to bypass `liquidityThresholdPercent` check, while https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/110 is to lower interest rate.
+
+Again, I'm perfectly fine whether this escalation goes through or not. Maybe I've misunderstood this issue (maybe the author @0x3b33 can give some reference). Just trying to figuring out the duplication logic here. Thanks!
+
+**0x73696d616f**
+
+> The root cause this issue is talking about is that borrowers can bypass the liquidityThresholdPercent check by depositing principal before creating a loan, and withdraw the principal after loan is created.
+
+This is not the root cause, and you agree with me given the next sentence
+> This _attack path_ is identical to https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/110
+
+I do not agree with the next paragraph at all.
+
+> Yes, users can withdraw their principal and make the liquidity percentage higher than liquidityThresholdPercent, but that is not what this issue is talking about - and I don't think it is a issue anyways, since it doesn't matter if the current liquidity percentage is higher or equal to liquidityThresholdPercent - either way no more principal can be taken as loan.
+
+The issue is bypassing `liquidityThresholdPercent`. This issue found an attack path that matches other issues, does not mean they are dups. We would not even be having this conversation if the attack path was just withdrawing to surpass the threshold (much simpler but less complex so would increase the likelihood of being overlooked by a judge imo).
+
+**cvetanovv**
+
+The similarity between the two issues is that they have the same exact attack path. We do not duplicate issues because of the same exact attack path but because of the same root cause.
+
+Soon, this rule will be improved.
+
+I stand by my initial decision to reject the escalation.
+
+**Evert0x**
+
+Result:
+Medium
+Has Duplicates
+
+**sherlock-admin4**
+
+Escalations have been resolved successfully!
+
+Escalation status:
+- [pkqs90](https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/68/#issuecomment-2119229175): rejected
+
+# Issue M-6: Utilization math should include `liquidityThresholdPercent` 
 
 Source: https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/70 
 
@@ -2263,7 +2191,7 @@ The protocol team fixed this issue in the following PRs/commits:
 https://github.com/teller-protocol/teller-protocol-v2-audit-2024/pull/17
 
 
-# Issue M-8: APRs are lower than they should 
+# Issue M-7: APRs are lower than they should 
 
 Source: https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/72 
 
@@ -2323,218 +2251,7 @@ The protocol team fixed this issue in the following PRs/commits:
 https://github.com/teller-protocol/teller-protocol-v2-audit-2024/pull/23
 
 
-# Issue M-9: LenderCommitmentGroup_Smart :: burnSharesToWithdrawEarnings() If a malicious lender burns their shares sequentially in small amounts can extract extra rewards at the expense of other lenders. 
-
-Source: https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/81 
-
-The protocol has acknowledged this issue.
-
-## Found by 
-IvanFitro
-## Summary
-**`burnSharesToWithdrawEarnings()`** allows lenders to burn their shares to retrieve both the principal tokens and the earnings they've accrued. However, a potential issue arises if a malicious lender repeatedly burns their shares in small amounts, as they could unfairly claim a disproportionate amount of rewards at the expense of other lenders.
-## Vulnerability Detail
-**`burnSharesToWithdrawEarnings()`** enables lenders to retrieve both their principal tokens and the earnings they've accrued.
-```Solidity
- function burnSharesToWithdrawEarnings(
-        uint256 _amountPoolSharesTokens,
-        address _recipient
-    ) external returns (uint256) {
-       
-
-        
-        poolSharesToken.burn(msg.sender, _amountPoolSharesTokens);
-
-        uint256 principalTokenValueToWithdraw = _valueOfUnderlying(
-            _amountPoolSharesTokens,
-            sharesExchangeRateInverse()
-        );
-
-        totalPrincipalTokensWithdrawn += principalTokenValueToWithdraw;
-
-        principalToken.transfer(_recipient, principalTokenValueToWithdraw);
-
-        return principalTokenValueToWithdraw;
-    }
-```
-As depicted, the process initially involves burning the lender's shares, followed by the valuation of the burned shares. Then, the exchange rate of the shares is calculated, along with the determination of the underlying asset's value based on the shares' quantity. Finally, the tokens along with the earnings are disbursed to the lender.
-
-However, an issue arises if the lender burns their shares in multiple small amounts transactions. In such cases, they may receive more earnings than if the burn were executed in a single transaction. To comprehend the matter fully, we must delve into the formulas employed.
-
-$poolTotalEstimatedValue = totalPrincipalTokensCommitted + totalInterestCollected + tokenDifferenceFromLiquidations - totalPrincipalTokensWithdrawn$
-
-$Rate = poolTotalEstimatedValue / sharesTotalSupply$
-
-$ValueOfUnderlying = ShareAmount / Rate$
-
-These three formulas serve to determine the number of tokens the lender will receive. To illustrate their function, let's delve into an example for better comprehension.
-
-**`totalPrincipalTokensCommitted = 100,000`**
-**`totalInterestCollected = 1,000`**
-**`tokenDifferenceFromLiquidations  = 0`**
-**`totalPrincipalTokensWithdrawn = 0`**
-
--------------------------------------------------- Example1: Withdraw all the shares at once -------------------------------------------
-
-**`AmountToWithdraw = 100,000`**
-
-**`poolTotalEstimatedValue = 100,000 + 1000 + 0 - 0  = 101000`**
-**`Rate = 101,000 / 100,000 = 1.01 = 1 / 1.01 = 0.99`**
-(We require the inverse because the rate calculates the number of shares you'll obtain for a specific amount of principal tokens, but now we need the opposite.)
-**`ValueOfUnderlying = 100,000 / 0.99 = 101000`**
-
-The lender will receive 101,000 tokens: 100,000 for their initial deposit and 1,000 for the interest. This is correct.
-
--------------------------------------------------- Example2: Withdraw all the sahres in two times -------------------------------------
-
-**`AmountToWithdraw = 50,000`**
-
-**`poolTotalEstimatedValue1 = 100,000 + 1000 + 0 - 0 = 101,000`**
-**`poolTotalEstimatedValue2 = 100,000 + 1000 + 0 - 50,000 = 51,000`**
-
-**`Rate1= 101000 / 100000 = 1.01 = 1 / 1.01 = 0.99 `**
-**`Rate2 = 51000 / 50000 = 1.01 = 1 / 1.01 = 0.98`**
-
-**`ValueOfUnderlying1 = 50,000/ 0.99 = 50505.5`**
-**`ValueOfUnderlying2 = 100,000 / 0.99 = 51020.4`**
-
-**`TotalValueOfUnderlying = 50,505.5 + 51,020.4 = 101525.9`**
-
-The lender will receive 101,525.9, 525.9 more than expected.
-
-In this scenario, it's not feasible because the maximum funds are capped at 101,000. However, in a real situation where there are more funds, a malicious lender could obtain funds from other lenders. I've demonstrated this using just one user for simplicity.
-## POC
-To demonstrate the impact of this issue, I'll provide an example with 20 withdrawals to illustrate the problem's magnitude.
-
-  |     |  |
-  | :--------: | :-------: |
-  | totalPrincipalTokensCommitted | 100,000    |   
-  | Interest| 1,000     |
-  | Withdrawals    | 20    |
-
-|   Withdrawal | totalPrincipalTokensCommitted |   totalSharesSupply |Rates|  ValueOfUnderlying |
-  | :--------: | :-------: |  :-------: |   :-------: |   :-------: |                
-  |1 |101,000 |100,000 |0.9900 | 5,050|
-  | 2| 96,000 |95,000| 0.9896|5,052|
-  |3 | 91,000|90,000|0.9890 |5,055|
-| 4| 86,000|85,000|0.9883 |5,058|
-  |5 | 81,000   |80,000|0.9876 |5,062|
-  | 6|76,000 |75,000|0.9868 |5,066|
- | 7|71,000  |70,000| 0.9859|5,071|
-  |8 |66,000 |65,000|0.9848 |5,076|
-  | 9|61,000 |60,000| 0.9836|5,083|
-|10 |56,000 |55,000| .98210|5,090|
-  | 11|  51,000    |50,000| 0.9803|5,100|
-  |12 |46,000 |45,000 |0.9782|5,111|
-|13 |  41,000    |40,000|0.9756 |5,125|
-  |14 |36,000|35,000|0.9722 |5,125|
- | 15| 31,000|30,000 | 0.9677|5,142|
-  |16 | 26,000|25,000|0.9615 |5,166|
-  | 17| 21,000|20,000|0.9524 |5,200|
-|18 |16,000 |15,000|0.9375 |5,250|
-  | 19|   11,000   |10,000|0.9090 |5,500|
-  |20 | 6,000|5,000| 0.8333|6,000|
-
-The sum of all the **`ValueOfUnderlying`** amounts to 103,597. The profit made by the malicious lender is calculated as 103,597 - 101,000 = 2,597. If the token is USDC, the total profit from this exploit would be 2,597 USDC. Given this profit, the transaction fees incurred in executing this exploit are justified.
-## Impact
-Malicious lenders can exploit the system by sequentially withdrawing small amounts of shares, thereby extracting more earnings at the expense of other lenders.
-## Code Snippet
-https://github.com/sherlock-audit/2024-04-teller-finance/blob/defe55469a2576735af67483acf31d623e13592d/teller-protocol-v2-audit-2024/packages/contracts/contracts/LenderCommitmentForwarder/extensions/LenderCommitmentGroup/LenderCommitmentGroup_Smart.sol#L277-L286
-https://github.com/sherlock-audit/2024-04-teller-finance/blob/defe55469a2576735af67483acf31d623e13592d/teller-protocol-v2-audit-2024/packages/contracts/contracts/LenderCommitmentForwarder/extensions/LenderCommitmentGroup/LenderCommitmentGroup_Smart.sol#L288-L302
-https://github.com/sherlock-audit/2024-04-teller-finance/blob/defe55469a2576735af67483acf31d623e13592d/teller-protocol-v2-audit-2024/packages/contracts/contracts/LenderCommitmentForwarder/extensions/LenderCommitmentGroup/LenderCommitmentGroup_Smart.sol#L324-L334
-https://github.com/sherlock-audit/2024-04-teller-finance/blob/defe55469a2576735af67483acf31d623e13592d/teller-protocol-v2-audit-2024/packages/contracts/contracts/LenderCommitmentForwarder/extensions/LenderCommitmentGroup/LenderCommitmentGroup_Smart.sol#L396-L415
-## Tool used
-Manual Review.
-## Recommendation
-There isn't a trivial solution for this problem, but one approach could be to require lenders to burn all their shares if they wish to recover their principal tokens along with the earnings.
-
-
-
-## Discussion
-
-**nevillehuang**
-
-request poc
-
-This issue is not obvious to verify, best to see a coded PoC. Also attaching LSW comments for consideration:
-
-> Withdraw 1 will be at rate 100_000/101_000, withdraw2 will be at rate ~50_000/50_500, hence the same rate for both withdrawals
-
-**sherlock-admin4**
-
-PoC requested from @IvanFitro
-
-Requests remaining: **1**
-
-**IvanFitro**
-
-This is incorrect because the interest is not being added to **`totalPrincipalTokensWithdrawn`**. The correct rates will be:
-```Solidity
-Withdraw 1 will be at rate 100_000/101_000, withdraw2 will be at rate ~50_000/51_000
-```
-This explains why the lender can extract more value by subtracting in steps. For instance,  rates **`50_000 / 50_500 > 50_000 / 51_000`**, dividing by a smaller numbers a larger result is obtained. This mechanism allows the lender to extract extra tokens when withdrawing in steps
-
-Remember **`ValueOfUnderlying = ShareAmount / Rate`**.
-
-## POC
-Include the test in **`LenderCommitmentGroup_Smart_Test.sol`**.
-```Solidity
-function testburnShares1Step() public {
-        principalToken.transfer(address(lenderCommitmentGroupSmart), 1e18);
-        // collateralToken.transfer(address(lenderCommitmentGroupSmart),1e18);
-
-        initialize_group_contract();
-
-        lenderCommitmentGroupSmart.set_totalInterestCollected(100000);
-
-
-        lenderCommitmentGroupSmart.set_mockSharesExchangeRate( 1e36 );  //this means 1:1 since it is expanded
-
-       // lenderCommitmentGroupSmart.set_totalPrincipalTokensCommitted(1000000);
-       // lenderCommitmentGroupSmart.set_totalInterestCollected(0);
-
-      
-        lenderCommitmentGroupSmart.set_totalPrincipalTokensCommitted(
-            
-            1000000
-        );
-
-
-        vm.prank(address(lender));
-        principalToken.approve(address(lenderCommitmentGroupSmart), 1000000);
-
-        vm.prank(address(lender));
-
-        uint256 sharesAmount = 1000000;
-        //should have all of the shares at this point
-        lenderCommitmentGroupSmart.mock_mintShares(
-            address(lender),
-            sharesAmount
-        );
-
-        vm.prank(address(lender));
-        
-         uint256 receivedPrincipalTokens 
-          = lenderCommitmentGroupSmart.burnSharesToWithdrawEarnings(
-                sharesAmount,
-                address(lender)
-            );
-        
-        uint256 PoolEstimatedValue = lenderCommitmentGroupSmart.getPoolTotalEstimatedValue();
-
-         assertEq(
-            PoolEstimatedValue,
-            100000
-        );
-
-        console.log("poolTotalEstimatedValue", lenderCommitmentGroupSmart.getPoolTotalEstimatedValue());
-    }
-```
-Upon executing the code (forge test --match-test testburnShares1Step -vv), you'll observe that the **`poolTotalEstimatedValue`** remains at 100,000 (interest), even after the entire principal amount has been withdrawn.
-
-The solution to this issue would be to add the interest earned by the lender to the **`totalPrincipalTokensWithdrawn`**.
-
-# Issue M-10: Malicious borrower can pay each payment and make its own loan default 1 month later 
+# Issue M-8: Malicious borrower can pay each payment and make its own loan default 1 month later 
 
 Source: https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/116 
 
@@ -2737,7 +2454,81 @@ In the vast majority of our cases, loans are 'seconds' instead of 'monthly' type
 
 @ethereumdegen Since there is a non-zero chance of this occuring I believe medium is appropriate here given the unlikeliness of offering monthly loans.
 
-# Issue M-11: `LenderCommitmentGroup` pools will have incorrect exchange rate when fee-on-transfer tokens are used 
+**pkqs90**
+
+
+Escalate
+
+Though this is a valid issue, the error lies in `V2Calculations.sol` contract, which is not in scope of the contest. The original scope is the following.
+```
+teller-protocol-v2-audit-2024/packages/contracts/contracts/LenderCommitmentForwarder/SmartCommitmentForwarder.sol
+teller-protocol-v2-audit-2024/packages/contracts/contracts/LenderCommitmentForwarder/extensions/FlashRolloverLoan_G5.sol
+teller-protocol-v2-audit-2024/packages/contracts/contracts/LenderCommitmentForwarder/extensions/LenderCommitmentGroup/LenderCommitmentGroupShares.sol
+teller-protocol-v2-audit-2024/packages/contracts/contracts/LenderCommitmentForwarder/extensions/LenderCommitmentGroup/LenderCommitmentGroup_Smart.sol
+teller-protocol-v2-audit-2024/packages/contracts/contracts/TellerV2.sol
+teller-protocol-v2-audit-2024/packages/contracts/contracts/TellerV2MarketForwarder_G2.sol
+teller-protocol-v2-audit-2024/packages/contracts/contracts/TellerV2MarketForwarder_G3.sol
+```
+
+Thus I think this issue should be OOS, specifically for this contest.
+
+**sherlock-admin3**
+
+> 
+> Escalate
+> 
+> Though this is a valid issue, the error lies in `V2Calculations.sol` contract, which is not in scope of the contest. The original scope is the following.
+> ```
+> teller-protocol-v2-audit-2024/packages/contracts/contracts/LenderCommitmentForwarder/SmartCommitmentForwarder.sol
+> teller-protocol-v2-audit-2024/packages/contracts/contracts/LenderCommitmentForwarder/extensions/FlashRolloverLoan_G5.sol
+> teller-protocol-v2-audit-2024/packages/contracts/contracts/LenderCommitmentForwarder/extensions/LenderCommitmentGroup/LenderCommitmentGroupShares.sol
+> teller-protocol-v2-audit-2024/packages/contracts/contracts/LenderCommitmentForwarder/extensions/LenderCommitmentGroup/LenderCommitmentGroup_Smart.sol
+> teller-protocol-v2-audit-2024/packages/contracts/contracts/TellerV2.sol
+> teller-protocol-v2-audit-2024/packages/contracts/contracts/TellerV2MarketForwarder_G2.sol
+> teller-protocol-v2-audit-2024/packages/contracts/contracts/TellerV2MarketForwarder_G3.sol
+> ```
+> 
+> Thus I think this issue should be OOS, specifically for this contest.
+
+You've created a valid escalation!
+
+To remove the escalation from consideration: Delete your comment.
+
+You may delete or edit your escalation comment anytime before the 48-hour escalation window closes. After that, the escalation becomes final.
+
+**0jovi0**
+
+According to the rules at https://docs.sherlock.xyz/audits/judging/judging#iii.-sherlocks-standards - section "7. Contract Scope", subsection 2: "In case the vulnerability exists in a library and an in-scope contract uses it and is affected by this bug this is a valid issue." 
+
+As TellerV2.sol [utilizes the library for the calculations](https://github.com/sherlock-audit/2024-04-teller-finance/blob/main/teller-protocol-v2-audit-2024/packages/contracts/contracts/TellerV2.sol#L1036), the issue is in scope.
+
+
+**nevillehuang**
+
+Agree with @0jovi0, the escalation should be rejected
+
+**cvetanovv**
+
+I disagree with the escalation. 
+
+@0jovi0 is right. According to Sherlock rules, this issue is in the audit scope.
+
+Planning to reject the escalation and leave the issue as is.
+
+**Evert0x**
+
+Result:
+Medium
+Unique
+
+**sherlock-admin4**
+
+Escalations have been resolved successfully!
+
+Escalation status:
+- [pkqs90](https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/116/#issuecomment-2119243049): rejected
+
+# Issue M-9: `LenderCommitmentGroup` pools will have incorrect exchange rate when fee-on-transfer tokens are used 
 
 Source: https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/122 
 
@@ -2846,7 +2637,113 @@ The protocol team fixed this issue in the following PRs/commits:
 https://github.com/teller-protocol/teller-protocol-v2-audit-2024/pull/37
 
 
-# Issue M-12: Issue #497 'Add parameter to lender accept bid for MaxMarketFee' from previous audit is still present 
+**0xMR0**
+
+Escalate
+
+This is invalid issue.
+
+The contest readme states:
+> We are allowing any standard token that would be compatible with Uniswap V3 to work with our codebase, just as was the case for the original audit of TellerV2.sol . The tokens are assumed to be able to work with Uniswap V3 .
+
+Uniswap V3 explicitely does not support Fee on transfer tokens. This can be checked [here](https://docs.uniswap.org/concepts/protocol/integration-issues#fee-on-transfer-tokens)
+
+> Uniswap v3 does not support Fee on transfer tokens.
+
+cc- @ethereumdegen 
+
+**sherlock-admin3**
+
+> Escalate
+> 
+> This is invalid issue.
+> 
+> The contest readme states:
+> > We are allowing any standard token that would be compatible with Uniswap V3 to work with our codebase, just as was the case for the original audit of TellerV2.sol . The tokens are assumed to be able to work with Uniswap V3 .
+> 
+> Uniswap V3 explicitely does not support Fee on transfer tokens. This can be checked [here](https://docs.uniswap.org/concepts/protocol/integration-issues#fee-on-transfer-tokens)
+> 
+> > Uniswap v3 does not support Fee on transfer tokens.
+> 
+> cc- @ethereumdegen 
+
+You've created a valid escalation!
+
+To remove the escalation from consideration: Delete your comment.
+
+You may delete or edit your escalation comment anytime before the 48-hour escalation window closes. After that, the escalation becomes final.
+
+**underdog-sec**
+
+Answering @0xMR0:
+As mentioned in [the link you provided](https://docs.uniswap.org/concepts/protocol/integration-issues#fee-on-transfer-tokens): _Fee-on-transfer tokens will not function with our **router** contracts_. It is only the router which does not support fee-on-transfer tokens. All other contracts in the Uniswap v3 protocol itself **do** support fee-on-transfer tokens.
+
+The main reasoning for the protocol behind only accepting tokens supported by Uniswap V3 is because the `LenderCommitmentGroup_Smart` requires a Uniswap pool for the expected tokens to be able to price them. This is possible with fee-on-transfer tokens as pools can be created with them, and their price can be fetched.
+
+**0x73696d616f**
+
+yes as @underdog-sec mentions, only the router is unsupported, pools work just fine.
+
+**0xMR0**
+
+> Token Integration Issues
+> Fee-on-transfer and rebasing tokens will not function correctly on v3.
+
+Tellor only intends to work with tokens that are compatible with uniswap V3 so fee on transfer tokens are not intended to be used by protocol. 
+
+I think, @ethereumdegen can clarify it better.
+
+**0x73696d616f**
+
+> Tellor only intends to work with tokens that are compatible with uniswap V3 so fee on transfer tokens are not intended to be used by protocol.
+I think, @ethereumdegen can clarify it better.
+
+I don't know what clarification we need from the sponsor if it was in the readme that this intends to be compatible with Uniswap V3 and it indeed works with Uniswap V3 pools.
+
+**nevillehuang**
+
+@0x73696d616f @0xMR0 @underdog-sec I might have misjudged this because uniswapV2 has explicit support for FOT in their routers and I assumed the same applies. 2 questions:
+
+1. Is there a current uniswapV3 pool that supports a FOT token?
+2. Is the uniswapv3 router contract required for teller to function?
+
+**crypticdefense**
+
+@nevillehuang 
+
+1. Here is an example of a V3 pool where fee-on-transfer token `PAXG` is used:  
+https://etherscan.io/address/0xcb1Abb2731a48D8819f03808013C0a0E48D9B3d9#readContract
+https://app.uniswap.org/explore/pools/ethereum/0xcb1Abb2731a48D8819f03808013C0a0E48D9B3d9
+
+2. No it is not, at least not in the case of `LenderCommitmentGroup` pools. Only the `UniswapV3Pool` interface is used to fetch the pool values of tokens, ticks, etc.
+
+**nevillehuang**
+
+Thanks @crypticdefense, based on the above information, I believe this issue should remain valid.
+
+**cvetanovv**
+
+I disagree with the escalation.
+
+The Uniswap router is incompatible with "Fee-on-transfer tokens", but this does not mean such tokens will not be used in the pool. 
+The protocol is likely to use this type of tokens and should be taken into consideration.
+
+Planning to reject the escalation and leave the issue as is.
+
+**Evert0x**
+
+Result:
+Medium
+Has Duplicates
+
+**sherlock-admin4**
+
+Escalations have been resolved successfully!
+
+Escalation status:
+- [0xMR0](https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/122/#issuecomment-2116550521): rejected
+
+# Issue M-10: Issue #497 'Add parameter to lender accept bid for MaxMarketFee' from previous audit is still present 
 
 Source: https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/125 
 
@@ -2912,7 +2809,7 @@ The protocol team fixed this issue in the following PRs/commits:
 https://github.com/teller-protocol/teller-protocol-v2-audit-2024/pull/38/files
 
 
-# Issue M-13: Incorrect selector in `FlashRolloverLoan_G5::_acceptCommitment()` does not match `SmartCommitmentForwarder::acceptCommitmentWithRecipient()` 
+# Issue M-11: Incorrect selector in `FlashRolloverLoan_G5::_acceptCommitment()` does not match `SmartCommitmentForwarder::acceptCommitmentWithRecipient()` 
 
 Source: https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/135 
 
@@ -2995,7 +2892,7 @@ The protocol team fixed this issue in the following PRs/commits:
 https://github.com/teller-protocol/teller-protocol-v2-audit-2024/pull/33
 
 
-# Issue M-14: `FlashRolloverLoan_G5` will fail for `LenderCommitmentGroup_Smart` due to `CollateralManager` pulling collateral from `FlashRolloverLoan_G5` 
+# Issue M-12: `FlashRolloverLoan_G5` will fail for `LenderCommitmentGroup_Smart` due to `CollateralManager` pulling collateral from `FlashRolloverLoan_G5` 
 
 Source: https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/138 
 
@@ -3043,7 +2940,7 @@ The protocol team fixed this issue in the following PRs/commits:
 https://github.com/teller-protocol/teller-protocol-v2-audit-2024/pull/35
 
 
-# Issue M-15: `FlashRolloverLoan_G5` will not work for certain tokens due to not setting the approval to `0` after repaying a loan 
+# Issue M-13: `FlashRolloverLoan_G5` will not work for certain tokens due to not setting the approval to `0` after repaying a loan 
 
 Source: https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/140 
 
@@ -3092,7 +2989,7 @@ The protocol team fixed this issue in the following PRs/commits:
 https://github.com/teller-protocol/teller-protocol-v2-audit-2024/pull/32
 
 
-# Issue M-16: Performing a direct multiplication in `_getPriceFromSqrtX96` will overflow for some uniswap pools 
+# Issue M-14: Performing a direct multiplication in `_getPriceFromSqrtX96` will overflow for some uniswap pools 
 
 Source: https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/243 
 
@@ -3221,7 +3118,58 @@ function _getPriceFromSqrtX96(uint160 _sqrtPriceX96)
 
 
 
-# Issue M-17: `LenderCommitmentGroup_Smart.sol` cannot deploy pools with non-string symbol() ERC20s. 
+
+
+## Discussion
+
+**spacegliderrrr**
+
+Escalate
+
+In order to overflow we need `sqrtPriceX96 * sqrtPriceX96` to be larger than uint256.max. This means that `tokenPrice * 2^192` must exceed 2^256, or we need `tokenPrice >= 2^64` or `tokenPrice >= ~1e18`. This requires 1 wei of token0 to be worth >1e18 wei of token1, which is absolutely unrealistic edge case scenario. Issue should be low.
+
+**sherlock-admin3**
+
+> Escalate
+> 
+> In order to overflow we need `sqrtPriceX96 * sqrtPriceX96` to be larger than uint256.max. This means that `tokenPrice * 2^192` must exceed 2^256, or we need `tokenPrice >= 2^64` or `tokenPrice >= ~1e18`. This requires 1 wei of token0 to be worth >1e18 wei of token1, which is absolutely unrealistic edge case scenario. Issue should be low.
+
+You've created a valid escalation!
+
+To remove the escalation from consideration: Delete your comment.
+
+You may delete or edit your escalation comment anytime before the 48-hour escalation window closes. After that, the escalation becomes final.
+
+**0x73696d616f**
+
+@spacegliderrrr it also takes the decimal difference between tokens into account, that is why it is likely to happen for some pools.
+
+**nevillehuang**
+
+@spacegliderrrr Any direct arguments for the example provided in the issue above? If not I believe this issue should remain valid
+
+> As an example, take [Uniswap’s WBTC/SHIBA pool](https://etherscan.io/address/0x1153C8F2B05Fdde2dB507c8D16E49d4C7405c907#readContract) and query slot0. At timestamp 1714392894, the slot0 value returned is  380146371870332863053439965317548561928, which is a 129 bit value. When the _getPriceFromSqrtX96 gets executed for the WBTC/SHIBA pool, an overflow will always occur because a multiplication of two 129-bit integers surpasses 256 bits.
+
+**cvetanovv**
+
+@0xadrii has given a good example of how some Uniswap pools may not be usable by the protocol due to overflow. We can also see how Uniswap has handled this. 
+
+Planning to reject the escalation and leave the issue as is.
+
+**Evert0x**
+
+Result:
+Medium
+Has Duplicates
+
+**sherlock-admin4**
+
+Escalations have been resolved successfully!
+
+Escalation status:
+- [spacegliderrrr](https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/243/#issuecomment-2119189730): rejected
+
+# Issue M-15: `LenderCommitmentGroup_Smart.sol` cannot deploy pools with non-string symbol() ERC20s. 
 
 Source: https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/269 
 
@@ -3313,7 +3261,7 @@ The protocol team fixed this issue in the following PRs/commits:
 https://github.com/teller-protocol/teller-protocol-v2-audit-2024/pull/36
 
 
-# Issue M-18: The cycle payment due may span over approx. 2 cycles and block the borrower from paying 
+# Issue M-16: The cycle payment due may span over approx. 2 cycles and block the borrower from paying 
 
 Source: https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/285 
 
@@ -3544,7 +3492,26 @@ The protocol team fixed this issue in the following PRs/commits:
 https://github.com/teller-protocol/teller-protocol-v2-audit-2024/pull/42
 
 
-# Issue M-19: Users can bypass auction mechanism for `LenderCommitmentGroup_Smart` liquidation mechanism for loans that are close to end of loan 
+**0x73696d616f**
+
+@nevillehuang is this in scope? It is out of scope according to the files in the readme. This was the response of the watson.
+> The issue manifests itself via external calls of TellerV2, e.g., repayLoanMinimum. As a result, the borrower cannot  pay their loan and loses the collateral. The root cause is in V2Calculations but the issue is in how TellerV2 is using V2Calculations.
+
+I understand what it means but I would like some clarity. Some people like me did not even look at this file due to this fact. I would like to know the standard/rule here so I can take this into consideration going forward.
+
+**nevillehuang**
+
+@0x73696d616f 
+
+potential issues in the libraries won't automatically be out of scope based on [sherlock scoping details](https://docs.sherlock.xyz/audits/judging/judging#iii.-sherlocks-standards). Just letting you know for your future contests.
+
+> 2. In case the vulnerability exists in a library and an in-scope contract uses it and is affected by this bug this is a valid issue.
+
+**0x73696d616f**
+
+Thank you! Thought so that is why I did not escalate.
+
+# Issue M-17: Users can bypass auction mechanism for `LenderCommitmentGroup_Smart` liquidation mechanism for loans that are close to end of loan 
 
 Source: https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/289 
 
