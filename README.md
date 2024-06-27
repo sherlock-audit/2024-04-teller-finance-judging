@@ -146,6 +146,10 @@ The protocol team fixed this issue in the following PRs/commits:
 https://github.com/teller-protocol/teller-protocol-v2-audit-2024/pull/10
 
 
+**sherlock-admin2**
+
+The Lead Senior Watson signed off on the fix.
+
 # Issue H-2: `burnSharesToWithdrawEarnings` burns before math, causing the share value to increase 
 
 Source: https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/19 
@@ -210,9 +214,15 @@ The protocol team fixed this issue in the following PRs/commits:
 https://github.com/teller-protocol/teller-protocol-v2-audit-2024/pull/11
 
 
+**sherlock-admin2**
+
+The Lead Senior Watson signed off on the fix.
+
 # Issue H-3: Borrowers can brick the commitment group pool 
 
 Source: https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/42 
+
+The protocol has acknowledged this issue.
 
 ## Found by 
 0x3b, 0xLogos, 0xadrii, EgisSecurity, bughuntoor, merlin, samuraii77
@@ -352,6 +362,10 @@ Ensure [_lenderCloseLoanWithRecipient](https://github.com/sherlock-audit/2024-04
 The protocol team fixed this issue in the following PRs/commits:
 https://github.com/teller-protocol/teller-protocol-v2-audit-2024/pull/16/files
 
+
+**sherlock-admin2**
+
+The Lead Senior Watson signed off on the fix.
 
 # Issue H-5: Anyone can steal pool shares from lender group if no-revert-on-failure tokens are used 
 
@@ -609,6 +623,10 @@ After discussions with @cvetanovv, planning to duplicate duplicates of #239 and 
 > - C -> medium severity attack path/just identifying the vulnerability.
 > Both B & C would not have been possible if error A did not exist in the first place. In this case, both B & C should be put together as duplicates.
 
+**sherlock-admin2**
+
+The Lead Senior Watson signed off on the fix.
+
 # Issue H-6: Drained lender due to `LenderCommitmentGroup_Smart::acceptFundsForAcceptBid()` `_collateralAmount` by `STANDARD_EXPANSION_FACTOR` multiplication 
 
 Source: https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/58 
@@ -850,6 +868,10 @@ The protocol team fixed this issue in the following PRs/commits:
 https://github.com/teller-protocol/teller-protocol-v2-audit-2024/pull/18
 
 
+**sherlock-admin2**
+
+The Lead Senior Watson signed off on the fix.
+
 # Issue H-7: `LenderCommitmentGroup_Smart` picks the wrong Uniswap price, allowing borrowing at a discount by swapping before withdrawing 
 
 Source: https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/109 
@@ -992,6 +1014,10 @@ Thanks this one had been infuriating and that is why there were ? marks  - reall
 The protocol team fixed this issue in the following PRs/commits:
 https://github.com/teller-protocol/teller-protocol-v2-audit-2024/pull/25
 
+
+**sherlock-admin2**
+
+The Lead Senior Watson signed off on the fix.
 
 # Issue H-8: Interest rate in `LenderCommitmentGroup_Smart` may be easily manipulated by depositing, taking a loan and withdrawing 
 
@@ -1147,6 +1173,10 @@ I believe this issue, #44 and #48 are duplicates. The root cause of allowing san
 
 The same fix of a withdrawal delay was applied to all issues.
 
+**sherlock-admin2**
+
+The Lead Senior Watson signed off on the fix.
+
 # Issue H-9: liquidateDefaultedLoanWithIncentive can be gamed to avoid paying loans interest 
 
 Source: https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/121 
@@ -1239,6 +1269,10 @@ The protocol team fixed this issue in the following PRs/commits:
 https://github.com/teller-protocol/teller-protocol-v2-audit-2024/pull/34/files
 
 
+**sherlock-admin2**
+
+The Lead Senior Watson signed off on the fix.
+
 # Issue H-10: `_sendOrEscrowFunds` will brick LCG funds causing insolvency 
 
 Source: https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/126 
@@ -1291,6 +1325,10 @@ The protocol team fixed this issue in the following PRs/commits:
 https://github.com/teller-protocol/teller-protocol-v2-audit-2024/pull/19
 
 
+**sherlock-admin2**
+
+The Lead Senior Watson signed off on the fix.
+
 # Issue H-11: If `repayLoanCallback` address doesn't implement `repayLoanCallback`  try/catch won't go into the catch and will revert the tx 
 
 Source: https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/178 
@@ -1341,6 +1379,10 @@ Maybe use a wrapper contract, which is trusted to you and is internally calling 
 The protocol team fixed this issue in the following PRs/commits:
 https://github.com/teller-protocol/teller-protocol-v2-audit-2024/pull/31
 
+
+**sherlock-admin2**
+
+The Lead Senior Watson signed off on the fix.
 
 # Issue H-12: Not transferring collateral when submitting bids allows malicious users to create honeypot-style attacks 
 
@@ -1493,6 +1535,8 @@ Since teller intends to support all types of ERC721 and it was not explicitly me
 
 Source: https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/32 
 
+The protocol has acknowledged this issue.
+
 ## Found by 
 bughuntoor
 ## Summary
@@ -1638,6 +1682,10 @@ function initialize(
 The protocol team fixed this issue in the following PRs/commits:
 https://github.com/teller-protocol/teller-protocol-v2-audit-2024/pull/13
 
+
+**sherlock-admin2**
+
+The Lead Senior Watson signed off on the fix.
 
 # Issue M-3: `LenderCommitmentGroup_Smart` does not use `mulDiv` when converting between token and share amounts, possibly leading to DoS or loss of funds 
 
@@ -1789,6 +1837,10 @@ Escalations have been resolved successfully!
 Escalation status:
 - [spacegliderrrr](https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/39/#issuecomment-2119196938): rejected
 
+**sherlock-admin2**
+
+The Lead Senior Watson signed off on the fix.
+
 # Issue M-4: `LenderCommitmentGroup_Smart_test::addPrincipalToCommitmentGroup/burnSharesToWithdrawEarnings()` are vulnerable to slippage attacks 
 
 Source: https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/64 
@@ -1922,6 +1974,10 @@ The fix would be the same, that is to implement a virtual minimum amount of shar
 - 281 - 1
 - 291 - 3
 - 297 - 3
+
+**sherlock-admin2**
+
+The Lead Senior Watson signed off on the fix.
 
 # Issue M-5: Borrowers can surpass `liquidityThresholdPercent` and borrow to near 100% of the principal 
 
@@ -2141,6 +2197,10 @@ Escalations have been resolved successfully!
 Escalation status:
 - [pkqs90](https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/68/#issuecomment-2119229175): rejected
 
+**sherlock-admin2**
+
+The Lead Senior Watson signed off on the fix.
+
 # Issue M-6: Utilization math should include `liquidityThresholdPercent` 
 
 Source: https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/70 
@@ -2190,6 +2250,10 @@ Include `liquidityThresholdPercent` in [getPoolUtilizationRatio](https://github.
 The protocol team fixed this issue in the following PRs/commits:
 https://github.com/teller-protocol/teller-protocol-v2-audit-2024/pull/17
 
+
+**sherlock-admin2**
+
+The Lead Senior Watson signed off on the fix.
 
 # Issue M-7: APRs are lower than they should 
 
@@ -2250,6 +2314,10 @@ If this seems too drastic, you could take the average APR of `before` and `after
 The protocol team fixed this issue in the following PRs/commits:
 https://github.com/teller-protocol/teller-protocol-v2-audit-2024/pull/23
 
+
+**sherlock-admin2**
+
+The Lead Senior Watson signed off on the fix.
 
 # Issue M-8: Malicious borrower can pay each payment and make its own loan default 1 month later 
 
@@ -2743,6 +2811,10 @@ Escalations have been resolved successfully!
 Escalation status:
 - [0xMR0](https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/122/#issuecomment-2116550521): rejected
 
+**sherlock-admin2**
+
+The Lead Senior Watson signed off on the fix.
+
 # Issue M-10: Issue #497 'Add parameter to lender accept bid for MaxMarketFee' from previous audit is still present 
 
 Source: https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/125 
@@ -2808,6 +2880,10 @@ Can't seem to find logic relating to above and don't see it as per [here](https:
 The protocol team fixed this issue in the following PRs/commits:
 https://github.com/teller-protocol/teller-protocol-v2-audit-2024/pull/38/files
 
+
+**sherlock-admin2**
+
+The Lead Senior Watson signed off on the fix.
 
 # Issue M-11: Incorrect selector in `FlashRolloverLoan_G5::_acceptCommitment()` does not match `SmartCommitmentForwarder::acceptCommitmentWithRecipient()` 
 
@@ -2892,6 +2968,10 @@ The protocol team fixed this issue in the following PRs/commits:
 https://github.com/teller-protocol/teller-protocol-v2-audit-2024/pull/33
 
 
+**sherlock-admin2**
+
+The Lead Senior Watson signed off on the fix.
+
 # Issue M-12: `FlashRolloverLoan_G5` will fail for `LenderCommitmentGroup_Smart` due to `CollateralManager` pulling collateral from `FlashRolloverLoan_G5` 
 
 Source: https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/138 
@@ -2939,6 +3019,10 @@ I believe the fix is described in #31  and the SCF contract just has to inherit 
 The protocol team fixed this issue in the following PRs/commits:
 https://github.com/teller-protocol/teller-protocol-v2-audit-2024/pull/35
 
+
+**sherlock-admin2**
+
+The Lead Senior Watson signed off on the fix.
 
 # Issue M-13: `FlashRolloverLoan_G5` will not work for certain tokens due to not setting the approval to `0` after repaying a loan 
 
@@ -2988,6 +3072,10 @@ Set the approval to 0 after repaying the loan.
 The protocol team fixed this issue in the following PRs/commits:
 https://github.com/teller-protocol/teller-protocol-v2-audit-2024/pull/32
 
+
+**sherlock-admin2**
+
+The Lead Senior Watson signed off on the fix.
 
 # Issue M-14: Performing a direct multiplication in `_getPriceFromSqrtX96` will overflow for some uniswap pools 
 
@@ -3169,6 +3257,21 @@ Escalations have been resolved successfully!
 Escalation status:
 - [spacegliderrrr](https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/243/#issuecomment-2119189730): rejected
 
+**ethereumdegen**
+
+ok i will fix this -- the fix is just to use that math lib call correct? 
+
+
+**sherlock-admin2**
+
+The protocol team fixed this issue in the following PRs/commits:
+https://github.com/teller-protocol/teller-protocol-v2-audit-2024/pull/46
+
+
+**sherlock-admin2**
+
+The Lead Senior Watson signed off on the fix.
+
 # Issue M-15: `LenderCommitmentGroup_Smart.sol` cannot deploy pools with non-string symbol() ERC20s. 
 
 Source: https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/269 
@@ -3260,6 +3363,10 @@ I dont think a try catch will work because if the token doesnt implement that fn
 The protocol team fixed this issue in the following PRs/commits:
 https://github.com/teller-protocol/teller-protocol-v2-audit-2024/pull/36
 
+
+**sherlock-admin2**
+
+The Lead Senior Watson signed off on the fix.
 
 # Issue M-16: The cycle payment due may span over approx. 2 cycles and block the borrower from paying 
 
@@ -3511,6 +3618,10 @@ potential issues in the libraries won't automatically be out of scope based on [
 
 Thank you! Thought so that is why I did not escalate.
 
+**sherlock-admin2**
+
+The Lead Senior Watson signed off on the fix.
+
 # Issue M-17: Users can bypass auction mechanism for `LenderCommitmentGroup_Smart` liquidation mechanism for loans that are close to end of loan 
 
 Source: https://github.com/sherlock-audit/2024-04-teller-finance-judging/issues/289 
@@ -3659,4 +3770,8 @@ We may need to a way to allow the lender group contract to 'close' defaulted loa
 The protocol team fixed this issue in the following PRs/commits:
 https://github.com/teller-protocol/teller-protocol-v2-audit-2024/pull/41
 
+
+**sherlock-admin2**
+
+The Lead Senior Watson signed off on the fix.
 
